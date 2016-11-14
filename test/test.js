@@ -71,4 +71,42 @@ describe('gulp-css-url-rebase', function () {
 
   });
 
+  it('should url root when specified', function (cb) {
+
+    var stream = cssRebaseUrls({ root: './www', urlRoot: '/' });
+
+    stream.on('data', function (file) {
+      assert.equal(file.contents.toString('utf8'), read('4/expected.css').toString('utf-8'));
+      cb();
+    });
+
+    stream.write(new gutil.File({
+      base: testPath,
+      path: testPath + '/style.css',
+      contents: read('4/test.css')
+    }));
+
+    stream.end();
+
+  });
+
+  it('should set url root when specified even with reroot set', function (cb) {
+
+    var stream = cssRebaseUrls({ root: './www', reroot: './wwwprocessed', urlRoot: '/' });
+
+    stream.on('data', function (file) {
+      assert.equal(file.contents.toString('utf8'), read('5/expected.css').toString('utf-8'));
+      cb();
+    });
+
+    stream.write(new gutil.File({
+      base: testPath,
+      path: testPath + '/style.css',
+      contents: read('5/test.css')
+    }));
+
+    stream.end();
+
+  });
+
 });

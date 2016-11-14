@@ -5,6 +5,7 @@ var rework = require('rework');
 var reworkUrl = require('rework-plugin-url');
 var through = require('through2');
 var validator = require('validator');
+var url = require('url');
 
 var isAbsolute = function (p) {
   var normal = path.normalize(p);
@@ -24,21 +25,23 @@ var isUrl = function (url) {
   }
 
   return validator.isURL(url, { require_protocol: true });
-}
+};
 
 var rebaseUrls = function (css, options) {
   return rework(css)
-    .use(reworkUrl(function (url) {
-      if (isAbsolute(url) || isUrl(url) || /^(data:.*;.*,)/.test(url)) {
-        return url;
+    .use(reworkUrl(function (cssUrl) {
+      if (isAbsolute(cssUrl) || isUrl(cssUrl) || /^(data:.*;.*,)/.test(cssUrl)) {
+        return cssUrl;
       }
 
-      var absolutePath = path.join(options.currentDir, url);
+      var absolutePath = path.join(options.currentDir, cssUrl);
       var p = path.relative(options.root, absolutePath);
 
       if (process.platform === 'win32') {
         p = p.replace(/\\/g, '/');
       }
+
+      p = url.resolve(options.urlRoot, p);
 
       return p;
     })).toString();
@@ -48,24 +51,25 @@ module.exports = function (options) {
   options = options || {};
   var root = options.root || '.';
   var reroot = options.reroot || '';
+  var urlRoot = options.urlRoot || '';
 
   return through.obj(function (file, enc, cb) {
     var fileDir = path.dirname(file.path);
+    var rerootPath = '';
 
     // Allows placing the processed CSS in a different root directory while
     // leaving image resources alone.
     if (reroot) {
-      var rerootPath = path.join(
+      rerootPath = path.join(
         path.relative(root, reroot),
         path.relative(root, fileDir)
       );
-    } else {
-      rerootPath = '';
     }
 
     var css = rebaseUrls(file.contents.toString(), {
       currentDir: fileDir,
-      root: path.join(file.cwd, root, rerootPath)
+      root: path.join(file.cwd, root, rerootPath),
+      urlRoot: urlRoot
     });
 
     file.contents = new Buffer(css);
